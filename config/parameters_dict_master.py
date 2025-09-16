@@ -158,7 +158,16 @@ def update_parameters_dict(par_dict_path, ran_seed) -> None:
 def update_parameters_bayesian(bayes_file) -> None:
     parfile = open(bayes_file, "r")
     for line in parfile:
-        key, val = line.split()
+        try:
+            key, val = line.split()
+        except:
+            if len(line)<=1: # skip empty line at the end
+                continue
+            else:
+                print("Warning: can not process the following line in file ",bayes_file)
+                print(line)
+                print(len(line))
+                continue
         if key in ipglasma_dict.keys():
             ipglasma_dict[key] = float(val)
 
