@@ -166,7 +166,9 @@ wait
 
 def generate_full_job_script(cluster_name, folder_name, initial_type,
                              ev0_id, n_ev, n_threads, ipglasma_flag, python_venv,
-                             walltime,array_job=False):
+                             walltime,IPGlasmadict,array_job=False):
+    # TODO here provide temporary directory for wilson lines to simulation_driver.py
+
     """This function generates full job script"""
     working_folder = folder_name
     event_id = working_folder.split('/')[-1]
@@ -186,13 +188,14 @@ def generate_full_job_script(cluster_name, folder_name, initial_type,
     if cluster_name != "OSG": 
         if array_job==False:
             script.write("""
-    python3 simulation_driver.py {0:s} {1:d} {2:d} {3:d} {4} > run.log
-    """.format(initial_type, ev0_id, n_ev, n_threads, ipglasma_flag))
+    python3 simulation_driver.py {0:s} {1:d} {2:d} {3:d} {4} ${5}> run.log
+    """.format(initial_type, ev0_id, n_ev, n_threads, ipglasma_flag, IPGlasmadict['wilsonLineDirectory']))
         else:
             # generate array job script
+            wlinedier = path.dirname(IPGlasmadict['wilsonLineDirectory'])+"/event_${SLURM_ARRAY_TASK_ID}"
             script.write("""
-(cd event_${{SLURM_ARRAY_TASK_ID}}; python3 simulation_driver.py {0:s} ${{SLURM_ARRAY_TASK_ID}} {1:d} {2:d} {3} > run.log)
-            """.format(initial_type, n_ev, n_threads, ipglasma_flag))
+(cd event_${{SLURM_ARRAY_TASK_ID}}; python3 simulation_driver.py {0:s} ${{SLURM_ARRAY_TASK_ID}} {1:d} {2:d} {3} {4} > run.log)
+            """.format(initial_type, n_ev, n_threads, ipglasma_flag, wlinedier))
     else:
         script.write("""
 python3 simulation_driver.py {0:s} {1:d} {2:d} {3:d} {4}
@@ -406,7 +409,7 @@ def generate_event_folders(initial_condition_type,
                              initial_condition_type,
                              event_id_offset, n_ev, n_threads,
                              save_ipglasma_flag, python_virtual_environment,
-                             walltime)
+                             walltime, IPGlasmaDict)
     
     return event_folder
 
@@ -612,9 +615,7 @@ def main():
     wilson_line_dir = parameter_dict.ipglasma_dict['wilsonLineDirectory']
 
     for ijob in range(n_jobs):
-        # if local scratch directory is used to store Wilson lines, avoid potential conflicts
-        if "scratch" in parameter_dict.ipglasma_dict['wilsonLineDirectory']:
-            parameter_dict.ipglasma_dict['wilsonLineDirectory'] = path.join(
+        parameter_dict.ipglasma_dict['wilsonLineDirectory'] = path.join(
                 wilson_line_dir,
                 "event_{}".format(ijob + osg_job_id))
         progress_i = (int(float(ijob + 1)/n_jobs*toolbar_width)
@@ -637,8 +638,7 @@ def main():
                                parameter_dict.ipglasma_dict,
                                python_venv, walltime)
         
-        if "scratch" in parameter_dict.ipglasma_dict['wilsonLineDirectory']:
-            update_wilson_line_directory(
+        update_wilson_line_directory(
                 path.join(generated_dir, "ipglasma","input"),
                 ijob + osg_job_id)
 
@@ -648,7 +648,7 @@ def main():
 
     generate_full_job_script(cluster_name, working_folder_name, initial_condition_type,
                              -1, n_ev, n_threads, save_ipglasma_flag, python_venv,
-                             walltime,array_job=True)
+                             walltime,parameter_dict.ipglasma_dict,array_job=True)
 
     pwd = path.abspath(".")
     script_path = path.join(code_package_path, "utilities")

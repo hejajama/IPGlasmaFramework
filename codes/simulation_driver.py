@@ -22,6 +22,8 @@ def print_usage():
 
 def get_initial_condition(initial_type, iev, final_results_folder):
     """This funciton get initial conditions"""
+    #TODO: THIS SHOULD NOW USE TEMPORARY DIRECTORY
+
     if "IPGlasma" in initial_type:
         run_ipglasma(iev)
         res_path = collect_ipglasma_event(final_results_folder, iev)
@@ -260,6 +262,7 @@ if __name__ == "__main__":
         N_EVENTS = int(sys.argv[3])
         N_THREADS = int(sys.argv[4])
         SAVE_IPGLASMA = (sys.argv[5].lower() == "true")
+        WILSON_LINE_DIRECTORY = str(sys.argv[6])
         #SEED = int(sys.argv[6])
     except IndexError:
         print_usage()
@@ -282,7 +285,10 @@ if __name__ == "__main__":
         'n_events': N_EVENTS,
         'num_threads': N_THREADS,
         'save_ipglasma': SAVE_IPGLASMA,
+        'wilsonLineDirectory':WILSON_LINE_DIRECTORY,
         #'random_seed': SEED,
     }
+
+    makedirs(WILSON_LINE_DIRECTORY, exist_ok=True)
 
     main(para_dict)
