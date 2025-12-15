@@ -46,6 +46,7 @@ ipglasma_dict = {
     'm_jimwlk': 0.4,
     'saveSnapshots': 1,
     'xSnapshotList': [4.56139851e-03, 6.18101984e-04, 6.51719835e-05],  # W = 45.9, 124.69, 384 GeV (J/Psi, Q^2 = 0)
+    'wilsonLineDirectory':'/local/scratch/testi',
     'writeWilsonLines': 2,      # 2: binary
 }
 

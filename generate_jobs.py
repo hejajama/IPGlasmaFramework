@@ -243,7 +243,7 @@ do
     cat ${ifile} | sed 's$N/A$0.0$g' | sed 's/Q_s/#Q_s/' > $results_folder/${filename}
     rm -fr ${ifile}
 done
-mv *V-* $results_folder/
+# mv *V-* $results_folder/
 """)
     if cluster_name != "OSG":
         script.write("""
@@ -255,7 +255,7 @@ mv run.err $results_folder/
 
 
 def generate_script_subnucleondiffraction(folder_name, event_id,
-                                          diffractionDict):
+                                          diffractionDict, IPGlasmaDict):
     """This function generates script for computing subnucleon diffraction"""
     working_folder = folder_name
 
@@ -271,10 +271,10 @@ def generate_script_subnucleondiffraction(folder_name, event_id,
     results_folder = 'subnucleondiffraction_results'
     script.write("""#!/bin/bash
 
-resultsFolder={0:s}
+resultsFolder={1:s}
 evid=$1
 fileId=$2
-WilsonLineFile=$3
+WilsonLineFile={0:s}/${{3}}
 xval=$4
 
 
@@ -282,7 +282,8 @@ cd subnucleondiffraction
 
 mkdir -p $resultsFolder
 
-""".format(results_folder))
+""".format(IPGlasmaDict['wilsonLineDirectory'],
+           results_folder))
 
     if diffractionDict['saveNucleusSnapshot']:
         script.write("""
@@ -354,7 +355,7 @@ def generate_event_folders(initial_condition_type,
                            package_root_path, code_path, working_folder,
                            cluster_name, event_id, event_id_offset,
                            n_ev, n_threads, save_ipglasma_flag,
-                           diffractionDict, python_virtual_environment,
+                           diffractionDict, IPGlasmaDict, python_virtual_environment,
                            walltime):
     """This function creates the event folder structure"""
     event_folder = path.join(working_folder, 'event_%d' % event_id)
@@ -389,7 +390,7 @@ def generate_event_folders(initial_condition_type,
 
 
         generate_script_subnucleondiffraction(event_folder,
-                                              event_id, diffractionDict)
+                                              event_id, diffractionDict, IPGlasmaDict)
         link_list = ['build/bin/subnucleondiffraction', diffractionDict["wavef_file"]]
 
         for link_i in link_list:
@@ -406,6 +407,8 @@ def generate_event_folders(initial_condition_type,
                              event_id_offset, n_ev, n_threads,
                              save_ipglasma_flag, python_virtual_environment,
                              walltime)
+    
+    return event_folder
 
 
 def create_a_working_folder(workfolder_path):
@@ -422,6 +425,22 @@ def create_a_working_folder(workfolder_path):
             print("bye~\n")
             exit(0)
 
+
+def update_wilson_line_directory(filename, eventid) -> None:
+    with open(filename, "r") as f:
+        lines = f.readlines()
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("wilsonLineDirectory"):
+            parts = stripped.split(None, 1)
+            if len(parts) == 2:
+                key, value = parts
+                value = value.rstrip("/") + "/" + "event_{}".format(eventid)
+                lines[i] = f"{key}  {value}\n"
+
+    with open(filename, "w") as f:
+        f.writelines(lines)
 
 def main():
     """This is the main funciton"""
@@ -589,7 +608,15 @@ def main():
     sys.stdout.flush()
     sys.stdout.write("\b"*(toolbar_width + 1))
     event_id_offset = osg_job_id
+
+    wilson_line_dir = parameter_dict.ipglasma_dict['wilsonLineDirectory']
+
     for ijob in range(n_jobs):
+        # if local scratch directory is used to store Wilson lines, avoid potential conflicts
+        if "scratch" in parameter_dict.ipglasma_dict['wilsonLineDirectory']:
+            parameter_dict.ipglasma_dict['wilsonLineDirectory'] = path.join(
+                wilson_line_dir,
+                "event_{}".format(ijob + osg_job_id))
         progress_i = (int(float(ijob + 1)/n_jobs*toolbar_width)
                       - int(float(ijob)/n_jobs*toolbar_width))
         for ii in range(progress_i):
@@ -601,13 +628,20 @@ def main():
         if initial_condition_type in ("IPGlasma"):
             save_ipglasma_flag = (
                     parameter_dict.control_dict['save_ipglasma_results'])
-        generate_event_folders(initial_condition_type,
+        generated_dir = generate_event_folders(initial_condition_type,
                                code_package_path, code_path,
                                working_folder_name, cluster_name,
                                ijob, event_id_offset, n_ev, n_threads,
                                save_ipglasma_flag,
                                parameter_dict.diffraction_dict,
+                               parameter_dict.ipglasma_dict,
                                python_venv, walltime)
+        
+        if "scratch" in parameter_dict.ipglasma_dict['wilsonLineDirectory']:
+            update_wilson_line_directory(
+                path.join(generated_dir, "ipglasma","input"),
+                ijob + osg_job_id)
+
         event_id_offset += n_ev
     sys.stdout.write("\n")
     sys.stdout.flush()
