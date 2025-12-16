@@ -277,7 +277,7 @@ def generate_script_subnucleondiffraction(folder_name, event_id,
 resultsFolder={1:s}
 evid=$1
 fileId=$2
-WilsonLineFile={0:s}/${{3}}
+WilsonLineFile=/${{3}}
 xval=$4
 
 

@@ -20,14 +20,12 @@ def print_usage():
           + "save_ipglasma_flag")
 
 
-def get_initial_condition(initial_type, iev, final_results_folder):
+def get_initial_condition(initial_type, iev, final_results_folder, wilson_line_folder):
     """This funciton get initial conditions"""
-    #TODO: THIS SHOULD NOW USE TEMPORARY DIRECTORY
 
     if "IPGlasma" in initial_type:
         run_ipglasma(iev)
-        res_path = collect_ipglasma_event(final_results_folder, iev)
-        WilsonLineFileList = glob(path.join(res_path, "*V-*"))
+        WilsonLineFileList = glob(path.join(wilson_line_folder, "*V-*"))
         return(WilsonLineFileList)
     else:
         print("\U0001F6AB  "
@@ -222,7 +220,7 @@ def main(para_dict_):
 
         # run IPGlasma
         WilsonLineFileList = get_initial_condition(
-                            initial_type, iev, final_results_folder)
+                            initial_type, iev, final_results_folder, para_dict_['wilsonLineDirectory'])
 
         if not WilsonLineFileList:
             # the result file list is empty
