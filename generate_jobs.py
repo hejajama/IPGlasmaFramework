@@ -192,10 +192,29 @@ def generate_full_job_script(cluster_name, folder_name, initial_type,
     """.format(initial_type, ev0_id, n_ev, n_threads, ipglasma_flag, IPGlasmadict['wilsonLineDirectory']))
         else:
             # generate array job script
-            wlinedier = path.dirname(IPGlasmadict['wilsonLineDirectory'])+"/event_${SLURM_ARRAY_TASK_ID}"
+            wlinedir = path.dirname(IPGlasmadict['wilsonLineDirectory'])+"/event_${SLURM_ARRAY_TASK_ID}"
             script.write("""
-(cd event_${{SLURM_ARRAY_TASK_ID}}; python3 simulation_driver.py {0:s} ${{SLURM_ARRAY_TASK_ID}} {1:d} {2:d} {3} {4} > run.log)
-            """.format(initial_type, n_ev, n_threads, ipglasma_flag, wlinedier))
+WLINEDIR="{4:s}"
+
+if [[ "$WLINEDIR" == *LOCAL_TMP* ]]; then
+    WLINEDIR="${{WLINEDIR//LOCAL_TMP/$TMPDIR}}"
+    echo "Using temporary directory for Wilson lines: $WLINEDIR"
+
+    input_file="event_${{SLURM_ARRAY_TASK_ID}}/ipglasma/input"
+
+    sed "s|LOCAL_TMP|$TMPDIR|g" "$input_file" > "${{input_file}}.tmp" \
+        && mv "${{input_file}}.tmp" "$input_file"
+fi
+
+(cd event_${{SLURM_ARRAY_TASK_ID}}; \
+ python3 simulation_driver.py {0:s} ${{SLURM_ARRAY_TASK_ID}} {1:d} {2:d} {3} "$WLINEDIR" > run.log)
+""".format(
+    initial_type,
+    n_ev,
+    n_threads,
+    ipglasma_flag,
+    wlinedir
+))
     else:
         script.write("""
 python3 simulation_driver.py {0:s} {1:d} {2:d} {3:d} {4}
