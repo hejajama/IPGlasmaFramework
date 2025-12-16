@@ -19,7 +19,7 @@ support_cluster_list = [
 
 
 def write_script_header(cluster, script, n_threads, event_id, walltime,
-                        working_folder):
+                        working_folder, control_dict):
     """This function write the header of the job submission script"""
     mem = 4*n_threads
     if cluster == "nersc":
@@ -73,11 +73,12 @@ def write_script_header(cluster, script, n_threads, event_id, walltime,
 #SBATCH --mem-per-cpu={3:.0f}G
 #SBATCH --output=job.out
 #SBATCH --error=job.err
+#SBATCH --gres=nvme:{5}      
 
 module add gsl fftw cmake
 
 cd {4:s}
-""".format(event_id, walltime, n_threads, mem/n_threads, working_folder))
+""".format(event_id, walltime, n_threads, mem/n_threads, working_folder,control_dict['temporary_disc_space']))
     elif cluster == "wsugrid":
         script.write("""#!/usr/bin/env bash
 #SBATCH --job-name {0:s}
@@ -166,8 +167,7 @@ wait
 
 def generate_full_job_script(cluster_name, folder_name, initial_type,
                              ev0_id, n_ev, n_threads, ipglasma_flag, python_venv,
-                             walltime,IPGlasmadict,array_job=False):
-    # TODO here provide temporary directory for wilson lines to simulation_driver.py
+                             walltime,IPGlasmadict, control_dict,array_job=False):
 
     """This function generates full job script"""
     working_folder = folder_name
@@ -179,7 +179,7 @@ def generate_full_job_script(cluster_name, folder_name, initial_type,
 
     script = open(path.join(working_folder, script_name), "w")
     write_script_header(cluster_name, script, n_threads, event_id, walltime,
-                        working_folder)
+                        working_folder, control_dict)
 
     if python_venv != "":
         script.write(f"source {path.abspath(python_venv)}/bin/activate")
@@ -377,7 +377,7 @@ def generate_event_folders(initial_condition_type,
                            package_root_path, code_path, working_folder,
                            cluster_name, event_id, event_id_offset,
                            n_ev, n_threads, save_ipglasma_flag,
-                           diffractionDict, IPGlasmaDict, python_virtual_environment,
+                           diffractionDict, IPGlasmaDict, control_dict, python_virtual_environment,
                            walltime):
     """This function creates the event folder structure"""
     event_folder = path.join(working_folder, 'event_%d' % event_id)
@@ -428,7 +428,7 @@ def generate_event_folders(initial_condition_type,
                              initial_condition_type,
                              event_id_offset, n_ev, n_threads,
                              save_ipglasma_flag, python_virtual_environment,
-                             walltime, IPGlasmaDict)
+                             walltime, IPGlasmaDict, control_dict)
     
     return event_folder
 
@@ -655,6 +655,7 @@ def main():
                                save_ipglasma_flag,
                                parameter_dict.diffraction_dict,
                                parameter_dict.ipglasma_dict,
+                               parameter_dict.control_dict,
                                python_venv, walltime)
         
         update_wilson_line_directory(
@@ -667,7 +668,7 @@ def main():
 
     generate_full_job_script(cluster_name, working_folder_name, initial_condition_type,
                              -1, n_ev, n_threads, save_ipglasma_flag, python_venv,
-                             walltime,parameter_dict.ipglasma_dict,array_job=True)
+                             walltime,parameter_dict.ipglasma_dict,parameter_dict.control_dict, array_job=True)
 
     pwd = path.abspath(".")
     script_path = path.join(code_package_path, "utilities")
