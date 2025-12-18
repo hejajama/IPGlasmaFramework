@@ -8,6 +8,7 @@ import subprocess
 import argparse
 from math import ceil
 from glob import glob
+import random
 
 known_initial_types = [
     "IPGlasma", "IPsat",
@@ -196,6 +197,7 @@ def generate_full_job_script(cluster_name, folder_name, initial_type,
             script.write("""
 WLINEDIR="{4:s}"
 
+
 if [[ "$WLINEDIR" == *LOCAL_TMP* ]]; then
     WLINEDIR="${{WLINEDIR//LOCAL_TMP/$TMPDIR}}"
     echo "Using temporary directory for Wilson lines: $WLINEDIR"
@@ -248,7 +250,7 @@ export OMP_NUM_THREADS={0:d}
 """.format(nthreads))
 
     if cluster_name != "OSG":
-        script.write("sleep {}".format(event_id))
+        script.write("sleep {}\n".format(random.randint(1, 60)))
         script.write("""
 # IPGlasma evolution (run 1 event)
 ./ipglasma input 1> run.log 2> run.err
